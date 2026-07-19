@@ -1,0 +1,38 @@
+version: "3.9"
+
+# =============================================================================
+# AutoBug AI — Docker Compose Dev Overrides
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# =============================================================================
+
+services:
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app         # Hot-reload: mount source code
+      - ./config.yaml:/app/config.yaml:ro
+      - repos_data:/tmp/autobug_repos
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - APP_ENV=development
+
+  worker:
+    volumes:
+      - ./backend:/app
+      - ./config.yaml:/app/config.yaml:ro
+      - repos_data:/tmp/autobug_repos
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - APP_ENV=development
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000

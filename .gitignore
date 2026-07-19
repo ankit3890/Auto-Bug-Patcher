@@ -1,0 +1,27 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.venv*/
+.env
+.env.*
+.ruff_cache/
+.pytest_cache/
+
+# Node/Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Docker sandbox/temp files
+repos/
+sandbox/
+*.log

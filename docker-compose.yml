@@ -1,0 +1,169 @@
+version: "3.9"
+
+# =============================================================================
+# AutoBug AI — Docker Compose (Full Stack)
+# =============================================================================
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file:
+    - ./backend/.env
+  environment:
+    - CONFIG_PATH=/app/config.yaml
+  volumes:
+    - ./config.yaml:/app/config.yaml:ro   # Mount config.yaml — edit anytime without rebuild
+    - repos_data:/tmp/autobug_repos
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    qdrant:
+      condition: service_started
+  networks:
+    - autobug_net
+  restart: unless-stopped
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — Primary Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: autobug_postgres
+    environment:
+      POSTGRES_DB: autobug
+      POSTGRES_USER: autobug
+      POSTGRES_PASSWORD: autobug_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autobug -d autobug"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autobug_net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — Celery Broker, Result Backend, SSE Pub/Sub
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: autobug_redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - autobug_net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — Vector Database for RAG
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: autobug_qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - autobug_net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Backend API — FastAPI
+  # ---------------------------------------------------------------------------
+  backend:
+    <<: *backend-common
+    container_name: autobug_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - repos_data:/tmp/autobug_repos
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker for sandbox
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker — Async Job Processing
+  # ---------------------------------------------------------------------------
+  worker:
+    <<: *backend-common
+    container_name: autobug_worker
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=4 --queues=autobug
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - repos_data:/tmp/autobug_repos
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker for sandbox
+
+  # ---------------------------------------------------------------------------
+  # Celery Beat — Scheduled Tasks (repo re-indexing, cleanup)
+  # ---------------------------------------------------------------------------
+  beat:
+    <<: *backend-common
+    container_name: autobug_beat
+    command: celery -A app.core.celery_app beat --loglevel=info --scheduler celery.beat.PersistentScheduler
+
+  # ---------------------------------------------------------------------------
+  # Flower — Celery Monitoring UI
+  # ---------------------------------------------------------------------------
+  flower:
+    <<: *backend-common
+    container_name: autobug_flower
+    command: celery -A app.core.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Next.js
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    container_name: autobug_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - autobug_net
+    restart: unless-stopped
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  autobug_net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  repos_data:

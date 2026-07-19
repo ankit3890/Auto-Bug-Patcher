@@ -1,0 +1,185 @@
+# =============================================================================
+# AutoBug AI — Central Configuration File
+# =============================================================================
+# All AI model settings, provider choices, and tuning parameters live here.
+# Edit this file to change models, providers, or behaviour at any time.
+# No code changes required.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# LLM (Large Language Model) Configuration
+# ---------------------------------------------------------------------------
+llm:
+  # Provider: mistral | openai | anthropic | google
+  provider: mistral
+
+  # Model name — must be valid for the chosen provider
+  # Mistral free-tier options: open-mistral-7b | open-mixtral-8x7b | mistral-small-latest
+  # Mistral paid options:      mistral-medium-latest | mistral-large-latest
+  model: open-mistral-7b
+
+  # Fallback model if primary fails (same provider)
+  fallback_model: open-mixtral-8x7b
+
+  # Generation parameters
+  temperature: 0.1          # Low temperature for deterministic code generation
+  max_tokens: 4096
+  top_p: 0.95
+  timeout_seconds: 120
+
+  # Retry configuration
+  max_retries: 3
+  retry_delay_seconds: 2
+
+# ---------------------------------------------------------------------------
+# Embedding Model Configuration
+# ---------------------------------------------------------------------------
+embeddings:
+  # Provider: mistral | openai
+  provider: mistral
+
+  # Mistral embedding model (only option currently: mistral-embed)
+  model: mistral-embed
+
+  # Dimension of embedding vectors
+  # mistral-embed: 1024
+  dimension: 1024
+
+  # Batch size for embedding requests
+  batch_size: 64
+
+# ---------------------------------------------------------------------------
+# Per-Agent Model Overrides
+# ---------------------------------------------------------------------------
+# Override specific agents to use a different model if needed.
+# Leave empty ({}) to use the global llm settings for all agents.
+agent_models:
+  # Example: use a faster/cheaper model for quick agents
+  repository_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  issue_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  planner_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.1
+  retrieval_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  environment_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  build_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  reproduction_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.1
+  localization_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.1
+  root_cause_agent:
+    model: open-mixtral-8x7b   # Use smarter model for RCA
+    temperature: 0.2
+  patch_agent:
+    model: open-mixtral-8x7b   # Use smarter model for patch gen
+    temperature: 0.1
+  static_analysis_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  test_generator_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.2
+  test_runner_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  reviewer_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.1
+  git_agent:
+    model: open-mistral-7b
+    temperature: 0.0
+  pr_agent:
+    model: open-mistral-7b
+    temperature: 0.1
+  report_agent:
+    model: open-mixtral-8x7b
+    temperature: 0.2
+
+# ---------------------------------------------------------------------------
+# RAG (Retrieval-Augmented Generation) Configuration
+# ---------------------------------------------------------------------------
+rag:
+  # Chunking strategy
+  chunk_size: 512            # tokens per chunk
+  chunk_overlap: 50          # token overlap between chunks
+
+  # Retrieval
+  top_k: 10                  # number of chunks to retrieve
+  similarity_threshold: 0.65 # minimum similarity score to include
+
+  # Qdrant collection settings
+  collection_prefix: autobug_repo_  # collection name = prefix + repo_id
+
+# ---------------------------------------------------------------------------
+# Sandbox Configuration
+# ---------------------------------------------------------------------------
+sandbox:
+  # Docker image for the execution sandbox
+  base_image: python:3.11-slim
+
+  # Resource limits per sandbox container
+  cpu_quota: 200000          # 2 CPUs (in microseconds per period)
+  memory_limit: "4g"         # 4 GB RAM
+  memory_swap: "4g"          # No swap (same as memory = no swap)
+
+  # Timeout settings
+  execution_timeout_seconds: 600   # 10 minutes per job
+  build_timeout_seconds: 300       # 5 minutes for dependency install
+
+  # Network isolation
+  network_mode: bridge         # Allow internet access inside sandbox to download packages/tools
+
+# ---------------------------------------------------------------------------
+# Job Pipeline Configuration
+# ---------------------------------------------------------------------------
+pipeline:
+  # Which agents to run (set to false to skip an agent)
+  agents:
+    repository_agent: true
+    issue_agent: true
+    planner_agent: true
+    retrieval_agent: true
+    environment_agent: true
+    build_agent: true
+    reproduction_agent: true
+    localization_agent: true
+    root_cause_agent: true
+    patch_agent: true
+    static_analysis_agent: true
+    test_generator_agent: true
+    test_runner_agent: true
+    reviewer_agent: true
+    git_agent: true
+    pr_agent: true
+    report_agent: true
+
+  # Human-in-the-loop: pause before pushing PR
+  require_human_approval: true
+
+# ---------------------------------------------------------------------------
+# Report Configuration
+# ---------------------------------------------------------------------------
+reporting:
+  # Output formats: markdown | html | pdf | json
+  formats:
+    - markdown
+    - html
+    - json
+
+  # Include sections in report
+  include_diff: true
+  include_execution_logs: true
+  include_test_results: true
+  include_confidence_scores: true

@@ -1,0 +1,1 @@
+"""AutoBug AI — Pydantic Schemas"""

@@ -1,0 +1,151 @@
+# AutoBug AI Architectural Overhaul Plan (Phases 1–10)
+
+This plan defines a complete redesign of the AutoBug AI pipeline to resolve report inconsistency, speculative claims, false approvals, and arbitrary confidence scores by establishing a **Single Source of Truth** state.
+
+---
+
+## Shared Architecture Vision
+
+```mermaid
+graph TD
+    A[Issue & Repo Inputs] --> B[Environment & Build Check]
+    B --> C[Reproduction Agent & Logs]
+    C --> D[Evidence Collector]
+    D --> E[Root Cause & Localization]
+    E --> F[Patch Generator]
+    F --> G[Validation Engine]
+    G --> H[Strict Reviewer Agent]
+    H --> I[Risk Analysis Agent]
+    I --> J[Confidence Engine]
+    J --> K[Consistency Checker]
+    K --> L[Jinja Report Generator]
+    L --> M[Git & PR Branching]
+```
+
+---
+
+## Proposed Changes & Phases
+
+### Phase 1 — Shared Pydantic Model State (Single Source of Truth)
+Establish a structured schema for the entire pipeline state to ensure agents write to predefined JSON structures instead of free-text Markdown.
+
+#### [NEW] [schemas.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/schemas.py)
+* Define Pydantic models for validation state, reproduction logs, review feedback, execution metrics, and risk analysis parameters:
+```python
+class ValidationState(BaseModel):
+    tests_executed: bool = False
+    tests_passed: bool = False
+    failed_reason: str | None = None
+    coverage: float | None = None
+
+class ReproductionEvidence(BaseModel):
+    command: str
+    reproduced: bool
+    observed_output: str
+    expected_output: str
+    request_details: str | None = None
+```
+
+#### [MODIFY] [state.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/state.py)
+* Refactor `AutoBugState` to hold these typed schema objects, converting the pipeline into a strictly typed LangGraph state machine.
+
+---
+
+### Phase 2 & 7 — Evidence Collection & Reproduction Logs
+Enhance the reproduction phase to log exact query inputs, observed outputs, and request logs.
+
+#### [MODIFY] [reproduction_agent.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/reproduction_agent.py)
+* Capture the specific request URLs, console logs, and stacktraces from execution runs.
+* Format reproduction logs into standard `ReproductionEvidence` states.
+
+---
+
+### Phase 3 — Rule-Based Confidence Engine
+Replace arbitrary LLM-generated confidence scores with an objective programmatic scoring matrix.
+
+#### [NEW] [confidence.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/core/confidence.py)
+* Implement a programmatic confidence score calculator:
+  - Bug Reproduced in Sandbox: `+20%`
+  - Stacktrace Captured: `+10%`
+  - Root cause file/line localized: `+20%`
+  - Static Analysis Passed: `+15%`
+  - Validation Tests Passed: `+25%`
+  - Reviewer Approved: `+10%`
+  - **Penalty:** Cap at `65%` if tests failed to execute or failed to pass.
+
+---
+
+### Phase 4 — Improved Reviewer Agent
+Ensure the Reviewer Agent relies strictly on source diffs and test results without speculative reasoning.
+
+#### [MODIFY] [reviewer_agent.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/reviewer_agent.py)
+* Rewrite the Reviewer system prompt to only evaluate the AST differences and validation command logs.
+* Require the Reviewer to output a strictly structured evaluation schema: approved status, correctness, security, maintainability, performance, evidence, and suggestions.
+* Align scores (e.g. 7-8/10 for minor feedback, <5/10 only for compile errors/syntax bugs).
+
+---
+
+### Phase 5 — Validation Engine
+Implement multi-stage execution logging for dependencies installation, syntax formatting, lints, pytest/jest test execution, and security scans.
+
+#### [MODIFY] [test_runner_agent.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/test_runner_agent.py)
+* Capture validation runs containing: exit code, execution command, duration (seconds), stdout logs, and detailed failure reason.
+
+---
+
+### Phase 6 — Jinja-Based Report Generator
+Prevent LLM formatting hallucinations by rewriting the Report Agent to compile structured states into Markdown using a standardized Jinja template.
+
+#### [NEW] [report_template.md](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/templates/report_template.md)
+* Design a modular Jinja template rendering:
+  - Facts vs AI Conclusions sections.
+  - Performance Complexity table (before/after).
+  - Validation & reproduction logs.
+  - Dynamic execution metrics (phase duration, costs).
+
+#### [MODIFY] [report_agent.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/report_agent.py)
+* Replace raw LLM report compilation with a Jinja context render using the pipeline structured state.
+
+---
+
+### Phase 8 & 9 — Risk Analysis & Execution Metrics
+Track metrics and code modifications to warn developers of high-risk changes.
+
+#### [NEW] [risk_agent.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/risk_agent.py)
+* Automatically parse AST diffs to assess risks: API breakage, database migration requirements, dependency additions, and regression scores.
+
+#### [MODIFY] [graph.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/graph.py)
+* Add execution duration, model token usages, and costs tracking middleware wrapper for all LangGraph nodes.
+
+---
+
+### Phase 10 — Pipeline Consistency Checker
+Establish a final rule-based checker node before publishing pull requests or saving issues.
+
+#### [NEW] [consistency_checker.py](file:///c:/Users/ankit/Desktop/AutoBug/backend/app/agents/consistency_checker.py)
+* Add verification rules:
+  - If tests failed → Reviewer approved must be `False`.
+  - If confidence > 90% → Tests must have passed.
+  - If reproduction occurred → Evidence logs must be present.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> Because this refactoring touches almost all agent modules, we propose an incremental execution plan to maintain codebase stability and check-in after major deliverables.
+
+## Open Questions
+
+> [!WARNING]
+> Please verify:
+> 1. Should we proceed with implementing **Phases 1-6** (Single Source of Truth, Jinja reports, and Validation Engine) first, or do you want the complete 10 phases executed in a single sequence?
+> 2. For execution cost tracking in Phase 9, do you want us to use standard pricing mappings for Mistral/OpenAI models?
+
+---
+
+## Verification Plan
+
+### Automated Tests
+* Run `docker-compose up --build -d` to verify all backend and worker services start up correctly.
+* Run pipeline test suites.
