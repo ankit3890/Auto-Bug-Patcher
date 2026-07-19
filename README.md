@@ -2,6 +2,16 @@
 
 > **WARNING:** Still all features are not working and the platform is being actively developed.
 
+## Current Issues and Challenges
+
+1. **Pipeline Summary Metrics Calculation**: Pipeline counters may show completed/skipped count discrepancies due to unexecuted nodes not being fully derived directly from downstream states.
+2. **Environment and Runtime Execution Alignment**: Distinguishing local sandbox environment checks (e.g. pytest availability) from project imports (e.g. ModuleNotFoundErrors) during execution.
+3. **Fault Location Verification**: Displaying specific file/line locations when validation is blocked (meaning application logic is never reached) can create conflicts.
+4. **Validation Blocked Patches**: Generated patches must be labeled as "Proposed / Not Verified" rather than verified patches if validation test runner collection fails early.
+5. **State-Machine Pipeline Gates**: Transitioning the pipeline orchestrator to a strict enum state-machine configuration to natively resolve step gating and prerequisites.
+
+---
+
 **Autonomous bug detection, root cause analysis, and code fix generation.**
 
 AutoBug AI connects to your GitHub repository, runs a LangGraph pipeline to analyze bugs, generate validated patches with regression tests, and automatically opens Pull Requests.
@@ -188,16 +198,6 @@ alembic upgrade head
 cd frontend
 npm run type-check
 ```
-
----
-
-## Current Issues and Challenges
-
-1. **Pipeline Summary Metrics Calculation**: Pipeline counters may show completed/skipped count discrepancies due to unexecuted nodes not being fully derived directly from downstream states.
-2. **Environment and Runtime Execution Alignment**: Distinguishing local sandbox environment checks (e.g. pytest availability) from project imports (e.g. ModuleNotFoundErrors) during execution.
-3. **Fault Location Verification**: Displaying specific file/line locations when validation is blocked (meaning application logic is never reached) can create conflicts.
-4. **Validation Blocked Patches**: Generated patches must be labeled as "Proposed / Not Verified" rather than verified patches if validation test runner collection fails early.
-5. **State-Machine Pipeline Gates**: Transitioning the pipeline orchestrator to a strict enum state-machine configuration to natively resolve step gating and prerequisites.
 
 ---
 
