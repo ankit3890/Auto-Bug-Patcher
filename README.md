@@ -1,8 +1,10 @@
-# 🐛 AutoBug AI
+# AutoBug AI
+
+> **WARNING:** Still all features are not working and the platform is being actively developed.
 
 **Autonomous bug detection, root cause analysis, and code fix generation.**
 
-AutoBug AI connects to your GitHub repository, runs a 17-agent LangGraph pipeline to analyze bugs, generate validated patches with regression tests, and automatically opens Pull Requests.
+AutoBug AI connects to your GitHub repository, runs a LangGraph pipeline to analyze bugs, generate validated patches with regression tests, and automatically opens Pull Requests.
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com)
@@ -11,9 +13,9 @@ AutoBug AI connects to your GitHub repository, runs a 17-agent LangGraph pipelin
 
 ---
 
-## ✨ Features
+## Features
 
-- **17 Specialized AI Agents** — orchestrated via LangGraph for autonomous bug fixing
+- **Specialized AI Agents** — orchestrated via LangGraph for autonomous bug fixing
 - **RAG Code Search** — Qdrant-powered semantic search across entire codebases
 - **Docker Sandbox** — isolated containers for safe bug reproduction and test execution
 - **Real-Time SSE Streaming** — live agent progress streamed to the UI
@@ -22,13 +24,13 @@ AutoBug AI connects to your GitHub repository, runs a 17-agent LangGraph pipelin
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 AutoBug/
 ├── backend/          # FastAPI + LangGraph + Celery
 │   └── app/
-│       ├── agents/   # 17 LangGraph agent nodes
+│       ├── agents/   # LangGraph agent nodes
 │       ├── rag/      # Qdrant vector search + AST parser
 │       ├── sandbox/  # Docker container manager
 │       ├── api/      # REST API + SSE endpoints
@@ -45,7 +47,7 @@ AutoBug/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -110,12 +112,12 @@ Services started:
 1. **Open** http://localhost:3000
 2. **Connect** a GitHub repository → indexing starts automatically
 3. **Submit** a bug report with steps to reproduce
-4. **Watch** the 17 agents work in real-time on the Issue Monitor page
+4. **Watch** the agents work in real-time on the Issue Monitor page
 5. **Review** the generated patch, tests, and PR
 
 ---
 
-## 🤖 The 17-Agent Pipeline
+## The Agent Pipeline
 
 | # | Agent | What it does |
 |---|-------|-------------|
@@ -139,7 +141,7 @@ Services started:
 
 ---
 
-## 🔑 Environment Variables
+## Environment Variables
 
 See [`backend/.env.example`](backend/.env.example) for the full list with descriptions.
 
@@ -155,7 +157,7 @@ Key variables:
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Backend only
 
@@ -189,6 +191,16 @@ npm run type-check
 
 ---
 
-## 📄 License
+## Current Issues and Challenges
 
-MIT © AutoBug AI Contributors
+1. **Pipeline Summary Metrics Calculation**: Pipeline counters may show completed/skipped count discrepancies due to unexecuted nodes not being fully derived directly from downstream states.
+2. **Environment and Runtime Execution Alignment**: Distinguishing local sandbox environment checks (e.g. pytest availability) from project imports (e.g. ModuleNotFoundErrors) during execution.
+3. **Fault Location Verification**: Displaying specific file/line locations when validation is blocked (meaning application logic is never reached) can create conflicts.
+4. **Validation Blocked Patches**: Generated patches must be labeled as "Proposed / Not Verified" rather than verified patches if validation test runner collection fails early.
+5. **State-Machine Pipeline Gates**: Transitioning the pipeline orchestrator to a strict enum state-machine configuration to natively resolve step gating and prerequisites.
+
+---
+
+## License
+
+MIT @ AutoBug AI Contributors
